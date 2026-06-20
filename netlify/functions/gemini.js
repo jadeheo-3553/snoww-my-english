@@ -8,7 +8,6 @@ exports.handler = async (event) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      console.error('GEMINI_API_KEY 없음');
       return { statusCode: 500, body: JSON.stringify({ error: 'API key missing' }) };
     }
 
@@ -29,21 +28,31 @@ exports.handler = async (event) => {
       body.systemInstruction = { parts: [{ text: system }] };
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+    // 모델 순서대로 시도
+    const models = ['gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let text = '';
+
+    for (const model of models) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }
+        );
+        const data = await response.json();
+        text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (text) {
+          console.log('성공 모델:', model);
+          break;
+        } else {
+          console.log('빈 응답 모델:', model, JSON.stringify(data).slice(0, 200));
+        }
+      } catch (modelErr) {
+        console.log('모델 오류:', model, modelErr.message);
       }
-    );
-
-    const data = await response.json();
-
-    // 디버깅: 빈 응답이면 전체 로그
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    if (!text) {
-      console.error('빈 응답 전체:', JSON.stringify(data));
     }
 
     return {
