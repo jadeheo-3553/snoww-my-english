@@ -7,7 +7,11 @@ exports.handler = async (event) => {
     const { messages, max_tokens, system } = JSON.parse(event.body);
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // Claude 형식 messages → Gemini 형식 변환
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY 없음');
+      return { statusCode: 500, body: JSON.stringify({ error: 'API key missing' }) };
+    }
+
     const contents = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
@@ -16,18 +20,17 @@ exports.handler = async (event) => {
     const body = {
       contents,
       generationConfig: {
-        maxOutputTokens: max_tokens || 400,
+        maxOutputTokens: max_tokens || 600,
         temperature: 0.9,
       },
     };
 
-    // system prompt가 있으면 추가
     if (system) {
       body.systemInstruction = { parts: [{ text: system }] };
     }
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,16 +40,19 @@ exports.handler = async (event) => {
 
     const data = await response.json();
 
-    // Gemini 응답 → Claude 형식으로 변환 (HTML이 같은 파싱 코드를 쓰도록)
+    // 디버깅: 빈 응답이면 전체 로그
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!text) {
+      console.error('빈 응답 전체:', JSON.stringify(data));
+    }
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: [{ type: 'text', text }]
-      }),
+      body: JSON.stringify({ content: [{ type: 'text', text }] }),
     };
   } catch (err) {
+    console.error('함수 오류:', err.message);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
