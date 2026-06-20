@@ -957,10 +957,25 @@ async function toggleVariation(){
     if(!res.ok){throw new Error('API 오류: '+res.status);}
     const data=await res.json();
     let text=(data.content?.[0]?.text||'').trim();
-    const jsonMatch=text.match(/\[[\s\S]*\]/);
-    if(!jsonMatch)throw new Error('응답 형식 오류');
-    const arr=JSON.parse(jsonMatch[0]);
-    if(!Array.isArray(arr)||!arr.length)throw new Error('빈 배열');
+    // JSON 배열 추출 - 여러 방법 시도
+    let arr = null;
+    // 방법1: 정규식으로 배열 추출
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if(jsonMatch){
+      try{ arr = JSON.parse(jsonMatch[0]); }catch(e){}
+    }
+    // 방법2: 줄별로 ko/en 패턴 추출
+    if(!arr || !arr.length){
+      const koMatches = text.match(/"ko"\s*:\s*"([^"]+)"/g) || [];
+      const enMatches = text.match(/"en"\s*:\s*"([^"]+)"/g) || [];
+      if(koMatches.length && enMatches.length){
+        arr = koMatches.map((ko,i)=>({
+          ko: ko.replace(/"ko"\s*:\s*"/,'').replace(/"$/,''),
+          en: (enMatches[i]||'').replace(/"en"\s*:\s*"/,'').replace(/"$/,'')
+        })).filter(v=>v.ko&&v.en);
+      }
+    }
+    if(!arr || !arr.length) throw new Error('파싱 실패: '+text.slice(0,100));
     document.getElementById('variation-content').innerHTML=arr.map((v)=>{
       const enSafe=(v.en||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
       return '<div class="variation-item">'
