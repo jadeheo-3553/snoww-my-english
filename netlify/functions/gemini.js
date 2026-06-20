@@ -21,10 +21,9 @@ exports.handler = async (event) => {
       generationConfig: {
         maxOutputTokens: max_tokens || 2000,
         temperature: 0.9,
-      },
-      // Thinking 비활성화 - 토큰 절약 및 JSON 잘림 방지
-      thinkingConfig: {
-        thinkingBudget: 0
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
       }
     };
 
