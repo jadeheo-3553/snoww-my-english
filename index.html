@@ -691,12 +691,12 @@ function showScreen(name){
   });
   currentScreen=name;
   if(name==='home')renderHome();
-  if(name==='study'){initStudy();renderStudy();}
+  if(name==='study'){resumeStudy();}
   if(name==='quiz')startQuiz();
   if(name==='chat')initChat();
   if(name==='list')renderList();
 }
-function goStudy(cat){studyCat=cat;showScreen('study');}
+function goStudy(cat){studyCat=cat;studyIdx=0;showScreen('study');}
 function studyWeak(){
   const w=S.weakSet;
   studyCards=cards.filter(c=>w.includes(c.ko));
@@ -760,6 +760,15 @@ function initStudy(){
   studyIdx=0;isFlipped=false;
   renderStudyCats();
   closeVariation();
+}
+
+// 탭 이동 후 돌아올 때 현재 위치 유지
+function resumeStudy(){
+  if(!studyCards.length){
+    initStudy();
+  }
+  renderStudyCats();
+  renderStudy();
 }
 
 function buildStudyCards(){
