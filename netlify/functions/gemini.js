@@ -19,40 +19,33 @@ exports.handler = async (event) => {
     const body = {
       contents,
       generationConfig: {
-        maxOutputTokens: max_tokens || 600,
+        maxOutputTokens: max_tokens || 2000,
         temperature: 0.9,
       },
+      // Thinking 비활성화 - 토큰 절약 및 JSON 잘림 방지
+      thinkingConfig: {
+        thinkingBudget: 0
+      }
     };
 
     if (system) {
       body.systemInstruction = { parts: [{ text: system }] };
     }
 
-    // 모델 순서대로 시도
-    const models = ['gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-    let text = '';
-
-    for (const model of models) {
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          }
-        );
-        const data = await response.json();
-        text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (text) {
-          console.log('성공 모델:', model);
-          break;
-        } else {
-          console.log('빈 응답 모델:', model, JSON.stringify(data).slice(0, 200));
-        }
-      } catch (modelErr) {
-        console.log('모델 오류:', model, modelErr.message);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       }
+    );
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    if (!text) {
+      console.error('빈 응답:', JSON.stringify(data).slice(0, 300));
     }
 
     return {
